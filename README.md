@@ -173,4 +173,4 @@ python -m pytest tests/
 │   ├── test_agent.py     # Agent functionality tests
 │   └── test_schema.py    # Database schema tests
 └── requirements.txt      # Python dependencies
-``
+```
