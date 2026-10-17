@@ -5,7 +5,7 @@ This project demonstrates financial assistant capabilities using LLMs with tool 
 ## Key Components
 
 - `app/agent.py`: Main finance assistant that uses LLMs with tool calling
-- `app/llm.py`: Abstraction layer for Ollama and AWS Bedrock providers
+- `app/llm.py`: Abstraction layer for AWS Bedrock provider (Ollama support planned)
 - `app/rag.py`: RAG implementation with PostgreSQL/pgvector
 - `app/hello*.py`: Simple examples for each LLM provider
 - `database/`: Database-related files including schema definitions
@@ -38,6 +38,13 @@ docker run --rm -d -p 5432:5432 \
   --name fintech-database fintech-db
 ```
 
+After starting the database, you need to update the risk embeddings for the RAG functionality to work properly:
+
+```bash
+# Run the embedding update script
+python app/rag.py
+```
+
 ### Testing
 ```bash
 python -m pytest tests/
@@ -51,13 +58,19 @@ Switch between LLM providers using environment variables:
 API bedrock header key is already exported at the console most of the time.
 
 ```bash
-# Ollama (default) - Ollama not testsed locally for now
-export LLM_PROVIDER=ollama
-export OLLAMA_MODEL=qwen2.5:7b
+# AWS Bedrock (default)
+export LLM_PROVIDER=bedrock
+export BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
 
-# AWS Bedrock
-LLM_PROVIDER=bedrock python agent.py
+# Alternative Bedrock models (require appropriate AWS quotas):
+# export BEDROCK_MODEL_ID=openai.gpt-oss-20b-1:0
+
+# Ollama support (planned for future implementation)
+# export LLM_PROVIDER=ollama
+# export OLLAMA_MODEL=qwen2.5:7b
 ```
+
+Note: Requires AWS account with Bedrock access and quota for the specified models.
 
 ### RAG Database Connection
 The RAG component connects to PostgreSQL:
@@ -92,3 +105,5 @@ Do not write unit tests, except if you are asked.
 - Connects to local database via Docker container (no persistence)
 - Extension setup handled automatically
 - Schema initialized via SQL script during container startup
+- Embeddings generated using Amazon Bedrock Titan model
+- Requires manual update of risk embeddings after database initialization using `python app/rag.py`
