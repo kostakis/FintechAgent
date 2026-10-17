@@ -172,13 +172,28 @@ def generate_embedding(text: str) -> list[float]:
         embedding = get_bedrock_embedding(text)
         return embedding
     except Exception as e:
-        logger.error(f"Can not generate embedding for {text} {e}")
+        logger.error(f"Can not generate embedding, reason {e}")
         # Fallback to a default zero so app does not crash
         return [0.0] * 512  # assums 512 alwats can be made argument
 
 
 def update_risk_embeddings(connection) -> None:
     """Update embeddings for all existing risk records"""
+
+    logger.info("Updating risk embeddings in the DB")
+    count_result = connection.execute(
+        """
+        SELECT COUNT(*)
+        FROM company_risks
+        WHERE embedding IS NULL
+        """
+    )
+    count = count_result.fetchone()[0]
+    logger.info(f"Found {count} risks without embeddings")
+
+    if count == 0:
+        return
+
     result = connection.execute(
         """
         SELECT id, description
@@ -190,7 +205,10 @@ def update_risk_embeddings(connection) -> None:
     rows = result.fetchall()
     for row in rows:
         risk_id, description = row
-        embedding = generate_embedding(description)
+        embedding: list[float] = generate_embedding(description)
+
+        if not embedding or all(x == 0.0 for x in embedding):
+            logger.error(f"Embedding generation failed for risk_id: {risk_id}")
 
         connection.execute(
             """
@@ -230,7 +248,8 @@ def semantic_search_risks(connection, query: str, limit: int = 5) -> list[dict[s
     """Perform semantic search on risks using embeddings"""
 
     # Generate embedding for the query
-    query_embedding = generate_embedding(query)
+    query_embedding: list[float] = generate_embedding(query)
+    # logger.debug(f"Generated embedding for query {query_embedding} {query_embedding[:6]}")
 
     result = connection.execute(
         """
@@ -256,7 +275,7 @@ def semantic_search_risks(connection, query: str, limit: int = 5) -> list[dict[s
             }
         )
 
-    #logger.debug(f"All risk records: {json.dumps(results, indent=2)}")
+    logger.debug(f"All risk records: {json.dumps(results, indent=2)}")
     return results
 
 

@@ -72,7 +72,7 @@ docker run --rm -d -p 5432:5432 \
   --name fintech-database fintech-db
 ```
 
-After starting the database, you need to update the risk embeddings for the RAG functionality to work properly:
+**After starting the database, you need to update the risk embeddings for the RAG functionality to work properly:**
 
 ```bash
 # Run the embedding update script
@@ -90,9 +90,10 @@ With specific Bedrock models:
 ```bash
 BEDROCK_MODEL_ID=amazon.nova-lite-v1:0 python app/agent.py
 BEDROCK_MODEL_ID=openai.gpt-oss-20b-1:0 python app/agent.py
+BEDROCK_MODEL_ID=deepseek.v3.2 python agent.py
 ```
 
-Note: Requires AWS account with Bedrock access and quota for the specified models.
+Note: Requires AWS account with Bedrock access and **quota** for the specified models.
 
 *(Ollama support planned for local LLM usage)*
 
