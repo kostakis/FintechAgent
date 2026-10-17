@@ -2,9 +2,6 @@
 
 A financial assistant powered by Large Language Models (LLMs) with Retrieval-Augmented Generation (RAG) capabilities for analyzing company risks. This project demonstrates advanced AI techniques including tool calling, semantic search, and cloud-based LLM support with planned local provider support.
 
-![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-
 ## Features
 
 - **Cloud-Based LLM Support**: Powered by AWS Bedrock (cloud) provider
@@ -191,4 +188,13 @@ python -m pytest tests/
 │   ├── test_agent.py     # Agent functionality tests
 │   └── test_schema.py    # Database schema tests
 └── requirements.txt      # Python dependencies
+```
+
+
+```mermaid
+flowchart LR
+    U(["User CLI"]) -->|Question| A["Agent Loop<br/>agent.py"]
+    A <-->|Tool Calls| B["AWS Bedrock<br/>Nova Lite"]
+    A <-->|Vector Search| DB[("PostgreSQL<br/>pgvector")]
+    A -->|Validate| P["Pydantic<br/>FinalAnswer JSON"]
 ```
