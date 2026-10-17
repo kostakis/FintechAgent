@@ -1,6 +1,5 @@
-"""The only file that knows about LLM providers (Ollama and Amazon Bedrock).
+"""The only file that knows about LLM providers (Amazon Bedrock).
 Choose the provider with environment variables:
-    LLM_PROVIDER=ollama   (default)
     LLM_PROVIDER=bedrock
 """
 
@@ -12,8 +11,8 @@ from typing import Any
 
 from utils import pretty_print_json
 
-PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+PROVIDER = os.getenv("LLM_PROVIDER", "bedrock").lower()
+# OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")  # Disabled temporarily, planned for future implementation
 BEDROCK_REGION = os.getenv("BEDROCK_REGION", "eu-north-1")
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "amazon.nova-lite-v1:0")
 MAX_TOKENS = 1000
@@ -46,66 +45,66 @@ def _clean_schema(s: Any) -> Any:
     return s
 
 
-# ---------------------------------------------------------------- Ollama
-def _to_ollama_messages(messages: list, system: str) -> list:
-    out = [{"role": "system", "content": system}]
-    for m in messages:
-        if m["role"] == "assistant":
-            d = {"role": "assistant", "content": m.get("content", "")}
-            if m.get("tool_calls"):
-                d["tool_calls"] = [{"function": {"name": c["name"], "arguments": c["args"]}} for c in m["tool_calls"]]
-            out.append(d)
-        elif m["role"] == "tool":
-            out.append({"role": "tool", "tool_name": m["name"], "content": m["content"]})
-        else:
-            out.append({"role": "user", "content": m["content"]})
-    return out
+# ---------------------------------------------------------------- Ollama (currently disabled)
+# def _to_ollama_messages(messages: list, system: str) -> list:
+#     out = [{"role": "system", "content": system}]
+#     for m in messages:
+#         if m["role"] == "assistant":
+#             d = {"role": "assistant", "content": m.get("content", "")}
+#             if m.get("tool_calls"):
+#                 d["tool_calls"] = [{"function": {"name": c["name"], "arguments": c["args"]}} for c in m["tool_calls"]]
+#             out.append(d)
+#         elif m["role"] == "tool":
+#             out.append({"role": "tool", "tool_name": m["name"], "content": m["content"]})
+#         else:
+#             out.append({"role": "user", "content": m["content"]})
+#     return out
 
 
-def _ollama_chat(messages: list, system: str, tools: list) -> Reply:
-    import ollama
+# def _ollama_chat(messages: list, system: str, tools: list) -> Reply:
+#     import ollama
 
-    extra = {"think": False} if "qwen3" in OLLAMA_MODEL else {}  # skip slow reasoning text
-    resp = ollama.chat(
-        model=OLLAMA_MODEL,
-        messages=_to_ollama_messages(messages, system),
-        tools=[
-            {
-                "type": "function",
-                "function": {
-                    "name": t["name"],
-                    "description": t["description"],
-                    "parameters": _clean_schema(t["parameters"]),
-                },
-            }
-            for t in tools
-        ],
-        options={"temperature": 0},
-        **extra,
-    )
-    msg = resp.message
-    calls = [ToolCall(id=f"call_{i}", name=c.function.name, args=dict(c.function.arguments)) for i, c in enumerate(msg.tool_calls or [])]
-    return Reply(
-        text=msg.content or "",
-        tool_calls=calls,
-        input_tokens=resp.prompt_eval_count,
-        output_tokens=resp.eval_count,
-        raw=resp,
-    )
+#     extra = {"think": False} if "qwen3" in OLLAMA_MODEL else {}  # skip slow reasoning text
+#     resp = ollama.chat(
+#         model=OLLAMA_MODEL,
+#         messages=_to_ollama_messages(messages, system),
+#         tools=[
+#             {
+#                 "type": "function",
+#                 "function": {
+#                 "name": t["name"],
+#                 "description": t["description"],
+#                 "parameters": _clean_schema(t["parameters"]),
+#                 },
+#             }
+#             for t in tools
+#         ],
+#         options={"temperature": 0},
+#         **extra,
+#     )
+#     msg = resp.message
+#     calls = [ToolCall(id=f"call_{i}", name=c.function.name, args=dict(c.function.arguments)) for i, c in enumerate(msg.tool_calls or [])]
+#     return Reply(
+#         text=msg.content or "",
+#         tool_calls=calls,
+#         input_tokens=resp.prompt_eval_count,
+#         output_tokens=resp.eval_count,
+#         raw=resp,
+#     )
 
 
-def _ollama_structured(messages: list, system: str, schema: dict) -> str:
-    import ollama
+# def _ollama_structured(messages: list, system: str, schema: dict) -> str:
+#     import ollama
 
-    extra = {"think": False} if "qwen3" in OLLAMA_MODEL else {}
-    resp = ollama.chat(
-        model=OLLAMA_MODEL,
-        messages=_to_ollama_messages(messages, system),
-        format=schema,
-        options={"temperature": 0},
-        **extra,
-    )
-    return resp.message.content or ""
+#     extra = {"think": False} if "qwen3" in OLLAMA_MODEL else {}
+#     resp = ollama.chat(
+#         model=OLLAMA_MODEL,
+#         messages=_to_ollama_messages(messages, system),
+#         format=schema,
+#         options={"temperature": 0},
+#         **extra,
+#     )
+#     return resp.message.content or ""
 
 
 # ---------------------------------------------------------------- Bedrock
@@ -249,20 +248,23 @@ def chat(messages: list, system: str, tools: list) -> Reply:
     """One model call with tools. Returns a provider-independent Reply."""
     if PROVIDER == "bedrock":
         return _bedrock_chat(messages, system, tools)
-    return _ollama_chat(messages, system, tools)
+    # Default to bedrock if provider is not recognized or ollama is disabled
+    return _bedrock_chat(messages, system, tools)
 
 
 def chat_structured(messages: list, system: str, schema: dict, tools: list) -> str:
     """A structured call that needs to match the JSON Schema"""
     if PROVIDER == "bedrock":
         return _bedrock_structured(messages, system, schema, tools)
-    return _ollama_structured(messages, system, schema)
+    # Default to bedrock if provider is not recognized or ollama is disabled
+    return _bedrock_structured(messages, system, schema, tools)
 
 
 def describe() -> str:
     if PROVIDER == "bedrock":
         return f"bedrock:{BEDROCK_MODEL_ID} ({BEDROCK_REGION})"
-    return f"ollama:{OLLAMA_MODEL}"
+    # Default to bedrock description if provider is not recognized or ollama is disabled
+    return f"bedrock:{BEDROCK_MODEL_ID} ({BEDROCK_REGION})"
 
 
 def get_bedrock_embedding(text: str) -> list[float]:
